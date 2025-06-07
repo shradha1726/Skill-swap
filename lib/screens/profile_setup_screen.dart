@@ -1,5 +1,3 @@
-// lib/screens/profile_setup_screen.dart
-
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -104,7 +102,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       }
 
       // Upload profile picture
-      final profileImageUrl =
+      var profileImageUrl =
           await _uploadFile(_profileImage!, 'profile_pictures/${user.uid}.jpg');
 
       // Upload skill images (optional)
@@ -269,6 +267,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       : SizedBox(
                           height: 48,
                           child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple,
+                              foregroundColor: Colors.white,
+                            ),
                             onPressed: _saveProfile,
                             child: const Text('Save Profile'),
                           ),

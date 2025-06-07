@@ -119,6 +119,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                     _isSending
                         ? const LoadingIndicator()
                         : ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple,
+                              foregroundColor: Colors.white,
+                            ),
                             onPressed: _resendVerificationEmail,
                             child: const Text('Resend Verification Email'),
                           ),

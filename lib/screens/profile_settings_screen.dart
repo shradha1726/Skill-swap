@@ -256,6 +256,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                           ErrorMessage(message: _errorMessage!),
                         const SizedBox(height: 16),
                         ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                          ),
                           onPressed: _saveProfile,
                           child: const Text('Save Changes'),
                         ),
