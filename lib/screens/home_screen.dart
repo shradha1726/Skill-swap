@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'swipe_screen.dart'; // Import your SwipeScreen
-import 'chat_overview_screen.dart'; // Import your ChatOverviewScreen
+import 'swipe_screen.dart'; // Your SwipeScreen widget
+import 'chat_overview_screen.dart'; // Your ChatOverviewScreen widget
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,7 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int _selectedIndex = 0;
 
-  // Keys for nested navigators for each tab
+  // Navigator keys for nested navigation in each tab
   final List<GlobalKey<NavigatorState>> _navigatorKeys = [
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onTap(int index) {
     if (index == _selectedIndex) {
-      // Pop to first route if reselecting tab
+      // If reselecting current tab, pop to first route in that tab
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
     } else {
       setState(() {
@@ -52,16 +52,13 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Navigator(
         key: _navigatorKeys[index],
         onGenerateRoute: (settings) {
-          Widget page;
+          late Widget page;
           switch (index) {
             case 0:
               page = const SwipeScreen();
               break;
             case 1:
-              page = const ChatOverviewScreen(
-                chatUserId: '',
-                chatUserName: '',
-              );
+              page = const ChatOverviewScreen();
               break;
             default:
               page = const SwipeScreen();
@@ -121,8 +118,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Stack(
         children: [
-          _buildOffstageNavigator(0),
-          _buildOffstageNavigator(1),
+          _buildOffstageNavigator(0), // Swipe tab
+          _buildOffstageNavigator(1), // Chat tab
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

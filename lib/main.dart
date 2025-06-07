@@ -29,6 +29,8 @@ class SkillSwapApp extends StatelessWidget {
       title: 'SkillSwap',
       theme: appTheme,
       initialRoute: '/splash',
+
+      // Define static routes for screens without required parameters
       routes: {
         '/splash': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
@@ -38,11 +40,37 @@ class SkillSwapApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/swipe': (context) => const SwipeScreen(),
         '/match': (context) => const MatchScreen(),
-        '/chat': (context) => const ChatScreen(
-              chatUserName: '',
-            ),
         '/profileSettings': (context) => const ProfileSettingsScreen(),
       },
+
+      // Handle routes that require parameters here
+      onGenerateRoute: (settings) {
+        if (settings.name == '/chat') {
+          final args = settings.arguments as Map<String, dynamic>?;
+
+          if (args == null ||
+              !args.containsKey('chatUserId') ||
+              !args.containsKey('chatUserName')) {
+            // If arguments are missing, you can redirect or show error
+            return MaterialPageRoute(
+              builder: (_) => const Scaffold(
+                body: Center(child: Text('Missing chat parameters')),
+              ),
+            );
+          }
+
+          return MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              chatUserId: args['chatUserId'] as String,
+              chatUserName: args['chatUserName'] as String,
+            ),
+          );
+        }
+
+        // Return null for unknown routes to show error or fallback
+        return null;
+      },
+
       debugShowCheckedModeBanner: false,
     );
   }

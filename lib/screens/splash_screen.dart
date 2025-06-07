@@ -49,8 +49,7 @@ class _SplashScreenState extends State<SplashScreen>
               child: child,
             ),
           ),
-          // Replace below with your custom logo/image widget
-          child: Image.asset('skill_swap/assets/logo.png'),
+          child: Image.asset('assets/images/logo.png'),
         ),
       ),
     );

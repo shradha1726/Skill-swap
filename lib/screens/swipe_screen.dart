@@ -1,253 +1,164 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 
-void main() {
-  runApp(const SwipeScreen());
-}
-
-class SwipeScreen extends StatelessWidget {
+class SwipeScreen extends StatefulWidget {
   const SwipeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Swipe Profiles',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.grey[100],
-        textTheme: const TextTheme(
-          headline4: TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 28, color: Colors.black87),
-          bodyText1: TextStyle(fontSize: 18, color: Colors.black87),
-          bodyText2: TextStyle(fontSize: 16, color: Colors.black54),
-        ),
-      ),
-      home: const SwipeProfilesScreen(),
-    );
-  }
+  State<SwipeScreen> createState() => _SwipeScreenState();
 }
 
-class UserProfile {
-  final String username;
-  final String skillsOffered;
-  final String skillsWanted;
-  final String availability;
-
-  UserProfile({
-    required this.username,
-    required this.skillsOffered,
-    required this.skillsWanted,
-    required this.availability,
-  });
-}
-
-class SwipeProfilesScreen extends StatefulWidget {
-  const SwipeProfilesScreen({super.key});
-
-  @override
-  State<SwipeProfilesScreen> createState() => _SwipeProfilesScreenState();
-}
-
-class _SwipeProfilesScreenState extends State<SwipeProfilesScreen>
-    with SingleTickerProviderStateMixin {
-  final List<UserProfile> profiles = [
-    UserProfile(
-      username: 'Alice Johnson',
-      skillsOffered: 'Flutter, Dart, UI Design',
-      skillsWanted: 'Firebase, Backend',
-      availability: 'Weekdays, 9 AM - 5 PM',
-    ),
-    UserProfile(
-      username: 'Bob Smith',
-      skillsOffered: 'Firebase, Node.js, Backend',
-      skillsWanted: 'Flutter, UX Design',
-      availability: 'Weekends, Flexible',
-    ),
-    UserProfile(
-      username: 'Clara Lee',
-      skillsOffered: 'React, JavaScript',
-      skillsWanted: 'Dart, Flutter',
-      availability: 'Evenings',
-    ),
+class _SwipeScreenState extends State<SwipeScreen> {
+  final List<Map<String, String>> profiles = [
+    {
+      'name': 'Alice',
+      'skillsOffered': 'C++, Python',
+      'skillsWanted': 'Graphic Design',
+      'availability': 'Weekends',
+      'imageUrl': 'https://randomuser.me/api/portraits/women/65.jpg',
+    },
+    {
+      'name': 'Bob',
+      'skillsOffered': 'Java Programming, GitHub',
+      'skillsWanted': 'Javascript',
+      'availability': 'Weekdays',
+      'imageUrl': 'https://randomuser.me/api/portraits/men/43.jpg',
+    },
+    {
+      'name': 'Charlie',
+      'skillsOffered': 'Cloud Computing',
+      'skillsWanted': 'Cyber Security',
+      'availability': 'Evenings',
+      'imageUrl': 'https://randomuser.me/api/portraits/men/52.jpg',
+    },
   ];
 
-  int currentIndex = 0;
-  Offset cardOffset = Offset.zero;
-  double rotation = 0.0;
-  String swipeStatus = ''; // 'like', 'pass', or ''
+  final CardSwiperController _controller = CardSwiperController();
 
-  void onPanUpdate(DragUpdateDetails details) {
-    setState(() {
-      cardOffset += details.delta;
-      rotation = cardOffset.dx / 350; // gentle rotation
-      if (cardOffset.dx > 120) {
-        swipeStatus = 'like';
-      } else if (cardOffset.dx < -120) {
-        swipeStatus = 'pass';
-      } else {
-        swipeStatus = '';
-      }
-    });
-  }
-
-  void onPanEnd(DragEndDetails details) {
-    if (swipeStatus == 'like') {
-      _showSnackBar('Liked ${profiles[currentIndex].username}');
-      _nextProfile();
-    } else if (swipeStatus == 'pass') {
-      _showSnackBar('Passed ${profiles[currentIndex].username}');
-      _nextProfile();
-    } else {
-      // Animate card back to center
-      setState(() {
-        cardOffset = Offset.zero;
-        rotation = 0.0;
-        swipeStatus = '';
-      });
+  FutureOr<bool> _onSwipe(
+      int previousIndex, int? currentIndex, CardSwiperDirection direction) {
+    final profile = profiles[previousIndex];
+    String action = '';
+    switch (direction) {
+      case CardSwiperDirection.right:
+        action = 'Liked';
+        break;
+      case CardSwiperDirection.left:
+        action = 'Disliked';
+        break;
+      case CardSwiperDirection.top:
+        action = 'Super liked';
+        break;
+      case CardSwiperDirection.bottom:
+        action = 'Skipped';
+        break;
+      case CardSwiperDirection.none:
+        throw UnimplementedError();
     }
-  }
-
-  void _nextProfile() {
-    setState(() {
-      cardOffset = Offset.zero;
-      rotation = 0.0;
-      swipeStatus = '';
-      currentIndex = (currentIndex + 1) % profiles.length;
-    });
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(milliseconds: 700),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.blueAccent,
-      ),
+      SnackBar(content: Text('$action ${profile['name']}')),
     );
+    return true; // Allow swipe to proceed
   }
 
-  Widget _buildBadge(String text, Color color, Alignment alignment,
-      {double rotationAngle = 0.0}) {
-    return Align(
-      alignment: alignment,
-      child: Transform.rotate(
-        angle: rotationAngle,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          margin: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            border: Border.all(color: color, width: 4),
-            borderRadius: BorderRadius.circular(12),
-            color: color.withOpacity(0.1),
-          ),
-          child: Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.5,
-            ),
-          ),
-        ),
-      ),
-    );
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final profile = profiles[currentIndex];
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Swipe Profiles'),
-        centerTitle: true,
-        elevation: 2,
+        title: const Text('Discover Skills'),
+        backgroundColor: Colors.deepPurple,
       ),
-      body: Center(
-        child: GestureDetector(
-          onPanUpdate: onPanUpdate,
-          onPanEnd: onPanEnd,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            transform: Matrix4.identity()
-              ..translate(cardOffset.dx, cardOffset.dy)
-              ..rotateZ(rotation),
-            curve: Curves.easeOut,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Card(
-                  elevation: 10,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Container(
-                    width: 340,
-                    height: 460,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 28, vertical: 32),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 12,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: CardSwiper(
+                controller: _controller,
+                cardsCount: profiles.length,
+                cardBuilder: (context, index, hThreshold, vThreshold) {
+                  final profile = profiles[index];
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
                     ),
+                    elevation: 8,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(profile.username,
-                            style: theme.textTheme.headline4),
-                        const SizedBox(height: 24),
-                        Text('Skills Offered',
-                            style: theme.textTheme.bodyText2!
-                                .copyWith(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 6),
-                        Text(profile.skillsOffered,
-                            style: theme.textTheme.bodyText1),
-                        const SizedBox(height: 20),
-                        Text('Skills Wanted',
-                            style: theme.textTheme.bodyText2!
-                                .copyWith(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 6),
-                        Text(profile.skillsWanted,
-                            style: theme.textTheme.bodyText1),
-                        const SizedBox(height: 20),
-                        Text('Availability',
-                            style: theme.textTheme.bodyText2!
-                                .copyWith(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 6),
-                        Text(profile.availability,
-                            style: theme.textTheme.bodyText1),
-                        const Spacer(),
-                        Center(
-                          child: Icon(
-                            Icons.account_circle,
-                            size: 120,
-                            color: Colors.blue.shade100,
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(20)),
+                            child: Image.network(
+                              profile['imageUrl']!,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                profile['name']!,
+                                style: const TextStyle(
+                                    fontSize: 24, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                  'Skills Offered: ${profile['skillsOffered']}'),
+                              Text('Skills Wanted: ${profile['skillsWanted']}'),
+                              Text('Availability: ${profile['availability']}'),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-                if (swipeStatus == 'like')
-                  _buildBadge('LIKE', Colors.green, Alignment.topLeft,
-                      rotationAngle: -0.4),
-                if (swipeStatus == 'pass')
-                  _buildBadge('PASS', Colors.red, Alignment.topRight,
-                      rotationAngle: 0.4),
-              ],
+                  );
+                },
+                onSwipe: _onSwipe,
+                onEnd: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('No more profiles')),
+                  );
+                },
+                numberOfCardsDisplayed: 3,
+                padding: const EdgeInsets.all(24),
+                backCardOffset: const Offset(40, 40),
+              ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  FloatingActionButton(
+                    heroTag: 'dislike',
+                    backgroundColor: Colors.redAccent,
+                    child: const Icon(Icons.close),
+                    onPressed: () =>
+                        _controller.swipe(CardSwiperDirection.left),
+                  ),
+                  FloatingActionButton(
+                    heroTag: 'like',
+                    backgroundColor: Colors.green,
+                    child: const Icon(Icons.favorite),
+                    onPressed: () =>
+                        _controller.swipe(CardSwiperDirection.right),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

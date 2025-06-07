@@ -98,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Text(
                   'Login',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.deepPurple,
+                        color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
@@ -123,6 +123,10 @@ class _LoginScreenState extends State<LoginScreen> {
               _isLoading
                   ? const LoadingIndicator()
                   : ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                      ),
                       onPressed: _login,
                       child: const Text('Login'),
                     ),

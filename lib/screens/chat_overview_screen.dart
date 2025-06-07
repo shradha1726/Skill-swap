@@ -1,184 +1,159 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+
+import 'chat_screen.dart';
 
 class ChatOverviewScreen extends StatefulWidget {
-  final String chatUserId; // The UID of the user you are chatting with
-  final String chatUserName;
-
-  const ChatOverviewScreen(
-      {super.key, required this.chatUserId, required this.chatUserName});
+  const ChatOverviewScreen({super.key});
 
   @override
-  State<ChatOverviewScreen> createState() => _ChatScreenState();
+  State<ChatOverviewScreen> createState() => _ChatOverviewScreenState();
 }
 
-class _ChatScreenState extends State<ChatOverviewScreen> {
+class _ChatOverviewScreenState extends State<ChatOverviewScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
-  final ImagePicker _picker = ImagePicker();
-
-  final TextEditingController _messageController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
 
   User? get currentUser => _auth.currentUser;
 
-  String get chatId {
-    final ids = [currentUser!.uid, widget.chatUserId];
-    ids.sort();
-    return ids.join('_');
-  }
-
-  Future<void> _sendMessage({String? text, String? imageUrl}) async {
-    if ((text == null || text.trim().isEmpty) && (imageUrl == null)) return;
-
-    final message = {
-      'idFrom': currentUser!.uid,
-      'idTo': widget.chatUserId,
-      'timestamp': FieldValue.serverTimestamp(),
-      'content': text ?? '',
-      'imageUrl': imageUrl ?? '',
-      'type': imageUrl != null ? 'image' : 'text',
-    };
-
-    await _firestore
+  Stream<QuerySnapshot> getRecentChatsStream() {
+    return _firestore
         .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .add(message);
-
-    _messageController.clear();
-    _scrollToBottom();
+        .where('participants', arrayContains: currentUser!.uid)
+        .orderBy('lastMessageTime', descending: true)
+        .snapshots();
   }
 
-  Future<void> _scrollToBottom() async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+  Future<List<QueryDocumentSnapshot>> fetchMatchedUsers() async {
+    final matchedSnapshot = await _firestore
+        .collection('matches')
+        .where('userIds', arrayContains: currentUser!.uid)
+        .get();
+
+    final matchedUserIds = matchedSnapshot.docs
+        .map((doc) => (doc.data() as Map)['userIds'] as List<dynamic>)
+        .expand((ids) => ids)
+        .where((id) => id != currentUser!.uid)
+        .toSet()
+        .toList();
+
+    if (matchedUserIds.isEmpty) return [];
+
+    final usersSnapshot = await _firestore
+        .collection('users')
+        .where(FieldPath.documentId, whereIn: matchedUserIds)
+        .get();
+
+    return usersSnapshot.docs;
   }
 
-  Future<void> _pickAndSendImage() async {
-    final pickedFile =
-        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-    if (pickedFile == null) return;
-
-    final file = File(pickedFile.path);
-    final fileName =
-        '${currentUser!.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final ref = _storage.ref().child('chat_images').child(fileName);
-
-    final uploadTask = ref.putFile(file);
-    final snapshot = await uploadTask;
-    final imageUrl = await snapshot.ref.getDownloadURL();
-
-    await _sendMessage(imageUrl: imageUrl);
-  }
-
-  Widget _buildMessageItem(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    final isMe = data['idFrom'] == currentUser!.uid;
-
-    if (data['type'] == 'image') {
-      return Container(
-        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: Image.network(
-          data['imageUrl'],
-          width: 200,
-          height: 200,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isMe ? Colors.deepPurple : Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          data['content'],
-          style: TextStyle(color: isMe ? Colors.white : Colors.black87),
+  void openChat(String chatUserId, String chatUserName) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          chatUserId: chatUserId,
+          chatUserName: chatUserName,
         ),
       ),
     );
   }
 
+  Widget _buildChatListItem(DocumentSnapshot chatDoc) {
+    final data = chatDoc.data() as Map<String, dynamic>;
+    final participants = List<String>.from(data['participants']);
+    final otherUserId = participants.firstWhere((id) => id != currentUser!.uid);
+    final lastMessage = data['lastMessage'] ?? '';
+    final lastMessageTime = (data['lastMessageTime'] as Timestamp?)?.toDate();
+
+    return FutureBuilder<DocumentSnapshot>(
+      future: _firestore.collection('users').doc(otherUserId).get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const ListTile(title: Text('Loading...'));
+        final userData = snapshot.data!.data() as Map<String, dynamic>;
+        final userName = userData['displayName'] ?? 'User';
+
+        return ListTile(
+          leading: CircleAvatar(
+            backgroundImage: userData['photoUrl'] != null
+                ? NetworkImage(userData['photoUrl'])
+                : null,
+            child:
+                userData['photoUrl'] == null ? const Icon(Icons.person) : null,
+          ),
+          title: Text(userName),
+          subtitle: Text(lastMessage),
+          trailing: lastMessageTime != null
+              ? Text(
+                  TimeOfDay.fromDateTime(lastMessageTime).format(context),
+                  style: const TextStyle(fontSize: 12),
+                )
+              : null,
+          onTap: () => openChat(otherUserId, userName),
+        );
+      },
+    );
+  }
+
+  Widget _buildMatchedUserItem(DocumentSnapshot userDoc) {
+    final data = userDoc.data() as Map<String, dynamic>;
+    final userName = data['displayName'] ?? 'User';
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundImage:
+            data['photoUrl'] != null ? NetworkImage(data['photoUrl']) : null,
+        child: data['photoUrl'] == null ? const Icon(Icons.person) : null,
+      ),
+      title: Text(userName),
+      subtitle: const Text('Matched user'),
+      onTap: () => openChat(userDoc.id, userName),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.chatUserName),
-        backgroundColor: Colors.deepPurple,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('chats')
-                  .doc(chatId)
-                  .collection('messages')
-                  .orderBy('timestamp')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final docs = snapshot.data!.docs;
-                return ListView.builder(
-                  controller: _scrollController,
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    return _buildMessageItem(docs[index]);
-                  },
-                );
-              },
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.photo),
-                  color: Colors.deepPurple,
-                  onPressed: _pickAndSendImage,
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration.collapsed(
-                        hintText: 'Type a message'),
-                    textCapitalization: TextCapitalization.sentences,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  color: Colors.deepPurple,
-                  onPressed: () =>
-                      _sendMessage(text: _messageController.text.trim()),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    if (currentUser == null) {
+      return const Center(child: Text('Please log in'));
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: getRecentChatsStream(),
+      builder: (context, chatSnapshot) {
+        if (chatSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final chats = chatSnapshot.data?.docs ?? [];
+
+        if (chats.isNotEmpty) {
+          return ListView.separated(
+            itemCount: chats.length,
+            separatorBuilder: (_, __) => const Divider(),
+            itemBuilder: (context, index) => _buildChatListItem(chats[index]),
+          );
+        } else {
+          return FutureBuilder<List<QueryDocumentSnapshot>>(
+            future: fetchMatchedUsers(),
+            builder: (context, matchedSnapshot) {
+              if (matchedSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final matchedUsers = matchedSnapshot.data ?? [];
+              if (matchedUsers.isEmpty) {
+                return const Center(child: Text('No chats or matches found'));
+              }
+              return ListView.separated(
+                itemCount: matchedUsers.length,
+                separatorBuilder: (_, __) => const Divider(),
+                itemBuilder: (context, index) =>
+                    _buildMatchedUserItem(matchedUsers[index]),
+              );
+            },
+          );
+        }
+      },
     );
   }
 }

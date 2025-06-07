@@ -124,7 +124,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 child: Text(
                   'Create Account',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.deepPurple,
+                        color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
@@ -156,6 +156,10 @@ class _SignupScreenState extends State<SignupScreen> {
               _isLoading
                   ? const LoadingIndicator()
                   : ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                      ),
                       onPressed: _signup,
                       child: const Text('Signup'),
                     ),
